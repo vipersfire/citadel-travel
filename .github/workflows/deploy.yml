@@ -11,16 +11,21 @@ on:
     workflows: [Checks]
     types: [completed]
     branches: [main]
-permissions: { contents: read, packages: write }
+permissions:
+  contents: read
 jobs:
   quality:
     uses: ./.github/workflows/checks.yml
     with: { target_sha: '${{ github.event.workflow_run.head_sha || github.sha }}' }
+    secrets: inherit
   release:
     needs: quality
     if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && vars.AUTO_DEPLOY_STAGING == 'true')
     environment: ${{ inputs.environment || 'staging' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
         with: { ref: '${{ github.event.workflow_run.head_sha || github.sha }}' }

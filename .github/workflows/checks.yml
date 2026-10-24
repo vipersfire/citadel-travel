@@ -7,6 +7,8 @@ on:
       target_sha:
         required: false
         type: string
+permissions:
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -52,3 +54,43 @@ jobs:
             .data/checks
             .lighthouseci
       - run: docker build -f infra/Dockerfile -t citadel:check .
+  neon-migrations:
+    name: Neon migration smoke test
+    needs: build
+    if: ${{ vars.NEON_CI_PROJECT_ID != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: '${{ inputs.target_sha || github.sha }}' }
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.32.1 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Set temporary branch expiry
+        run: echo "BRANCH_EXPIRES_AT=$(date -u --date '+1 day' +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
+      - name: Create disposable Neon migration branch
+        id: neon
+        uses: neondatabase/create-branch-action@v6
+        with:
+          project_id: ${{ vars.NEON_CI_PROJECT_ID }}
+          api_key: ${{ secrets.NEON_CI_API_KEY }}
+          branch_name: ci-${{ github.run_id }}-${{ github.run_attempt }}
+          database: ${{ vars.NEON_CI_DATABASE || 'neondb' }}
+          role: ${{ vars.NEON_CI_ROLE || 'neondb_owner' }}
+          expires_at: ${{ env.BRANCH_EXPIRES_AT }}
+          suspend_timeout: 300
+      - name: Apply application migrations
+        run: pnpm db:migrate
+        env:
+          APP_ENV: production
+          DATABASE_URL: ${{ steps.neon.outputs.db_url }}
+      - name: Delete temporary Neon branch
+        if: ${{ always() && steps.neon.outputs.branch_id != '' }}
+        uses: neondatabase/delete-branch-action@v3
+        with:
+          project_id: ${{ vars.NEON_CI_PROJECT_ID }}
+          branch: ${{ steps.neon.outputs.branch_id }}
+          api_key: ${{ secrets.NEON_CI_API_KEY }}

@@ -1,0 +1,440 @@
+import { z } from 'zod';
+import { localizedSchema, serviceTypes } from './index.js';
+const t = z.string().max(10000),
+  id = z.uuid(),
+  n = z.number().int(),
+  dt = z.iso.date(),
+  lt = localizedSchema.nullable(),
+  j = z.any(),
+  bool = z.boolean();
+const sportValues = ['football', 'motorsport', 'tennis', 'running', 'other'] as const;
+const readinessValues = ['draft', 'interest_only', 'ready_to_offer'] as const;
+const publishStatusValues = ['draft', 'published', 'archived'] as const;
+const eventDateStatusValues = [
+  'tba',
+  'provisional',
+  'confirmed',
+  'changed',
+  'postponed',
+  'cancelled',
+] as const;
+const batchStatusValues = [
+  'draft',
+  'open',
+  'closed',
+  'confirmed',
+  'in_progress',
+  'completed',
+  'cancelled',
+] as const;
+const ticketAllocationValues = ['not_requested', 'requested', 'partial', 'allocated'] as const;
+const leadStatusValues = ['new', 'contacted', 'qualified', 'converted', 'closed'] as const;
+const serviceStatusValues = [
+  'not_started',
+  'requested',
+  'pending_allocation',
+  'confirmed',
+  'issued',
+  'cancelled',
+] as const;
+const deliveryMethodValues = ['pdf', 'wallet', 'external_app', 'paper', 'in_person'] as const;
+const handoverStatusValues = ['planned', 'handed_over', 'not_applicable'] as const;
+const visaStageValues = [
+  'not_started',
+  'collecting_documents',
+  'appointment_booked',
+  'submitted',
+  'approved',
+  'refused',
+  'not_required',
+] as const;
+const roomTypeValues = ['twin', 'double', 'single'] as const;
+const sectionKindValues = [
+  'hero',
+  'why',
+  'sports',
+  'season',
+  'beyond',
+  'how_to_book',
+  'team',
+  'cta',
+] as const;
+const rightsStatusValues = [
+  'unverified',
+  'owned',
+  'licensed',
+  'commissioned',
+  'ai_placeholder',
+] as const;
+const hotelCategoryValues = [
+  '1-star',
+  '2-star',
+  '3-star',
+  '4-star',
+  '5-star',
+  'Boutique',
+  'Luxury',
+] as const;
+
+// Values presented as admin selects. Hotel category remains open text in storage because suppliers
+// may use a category outside the suggested list; the admin editor offers a custom-value option.
+export const resourceOptions: Record<string, Record<string, readonly string[]>> = {
+  packages: {
+    sport: sportValues,
+    readiness: readinessValues,
+    status: publishStatusValues,
+  },
+  events: { sport: sportValues, date_status: eventDateStatusValues },
+  batches: {
+    hotel_category: hotelCategoryValues,
+    status: batchStatusValues,
+    ticket_allocation_status: ticketAllocationValues,
+  },
+  addons: { status: publishStatusValues },
+  faqs: { status: publishStatusValues },
+  leads: { status: leadStatusValues, sport: sportValues },
+  services: {
+    type: serviceTypes,
+    status: serviceStatusValues,
+    delivery_method: deliveryMethodValues,
+    handover_status: handoverStatusValues,
+  },
+  visas: { stage: visaStageValues },
+  rooms: { room_type: roomTypeValues },
+  pages: { status: publishStatusValues },
+  sections: { kind: sectionKindValues, status: publishStatusValues },
+  testimonials: { status: publishStatusValues },
+  team: { status: publishStatusValues },
+  media: { rights_status: rightsStatusValues },
+};
+
+export const resources: Record<
+  string,
+  { table: string; fields?: Record<string, z.ZodType>; readonly?: boolean }
+> = {
+  packages: {
+    table: 'packages',
+    fields: {
+      code: t,
+      slug: t.regex(/^[a-z0-9]+(-[a-z0-9]+)*$/),
+      sport: z.enum(sportValues),
+      readiness: z.enum(readinessValues),
+      supplier_verified_at: t.nullable(),
+      coverage_verified_at: t.nullable(),
+      quotation_ref: t,
+      sales_rights_note: t,
+      nights_note: lt,
+      proof_points: z.array(
+        z.object({ key: t, label: localizedSchema, value: localizedSchema }).strict(),
+      ),
+      interest_label: lt,
+      status: z.enum(publishStatusValues),
+      title: lt,
+      subtitle: lt,
+      summary: lt,
+      story: j,
+      highlights: z.array(lt),
+      inclusions: z.array(lt),
+      exclusions: z.array(lt),
+      hotel_style: lt,
+      countries: z.array(t.length(2)),
+      cities: z.array(t),
+      nights_min: n,
+      nights_max: n,
+      hero_media_id: id.nullable(),
+      hero_video_id: id.nullable(),
+      terms: lt,
+      visa_note: lt,
+      seo: j,
+      featured: bool,
+      sort_order: n,
+    },
+  },
+  events: {
+    table: 'events',
+    fields: {
+      name: lt,
+      sport: z.enum(sportValues),
+      competition: t,
+      home_side: t,
+      away_side: t,
+      venue: t,
+      city: t,
+      country: t.length(2),
+      starts_on: dt.nullable(),
+      ends_on: dt.nullable(),
+      start_time_local: t.nullable(),
+      timezone: t,
+      date_status: z.enum(eventDateStatusValues),
+      source_url: z.url().nullable(),
+      last_checked_at: t.nullable(),
+      notes: t,
+      date_source_note: t,
+    },
+  },
+  batches: {
+    table: 'batches',
+    fields: {
+      package_id: id,
+      event_id: id.nullable(),
+      code: t,
+      title: lt,
+      start_date: dt.nullable(),
+      end_date: dt.nullable(),
+      capacity: n.positive().max(200),
+      min_pax: n.positive(),
+      hotel_category: t,
+      request_cutoff: dt.nullable(),
+      status: z.enum(batchStatusValues),
+      ticket_allocation_status: z.enum(ticketAllocationValues),
+      ticket_allocation_note: lt,
+      tour_leader_name: t,
+      tour_leader_whatsapp: t,
+      meeting_point: lt,
+      member_notes: lt,
+      supplier_name: t,
+      supplier_ref: t,
+      internal_notes: t,
+    },
+  },
+  addons: {
+    table: 'addons',
+    fields: {
+      code: t,
+      name: lt,
+      description: lt,
+      media_id: id.nullable(),
+      applies_to_all: bool,
+      status: z.enum(publishStatusValues),
+      sort_order: n,
+    },
+  },
+  options: {
+    table: 'package_options',
+    fields: {
+      package_id: id,
+      code: t,
+      name: lt,
+      description: lt,
+      includes_event_entry: bool,
+      active: bool,
+      sort_order: n,
+    },
+  },
+  'sample-itinerary': {
+    table: 'package_itinerary_days',
+    fields: {
+      package_id: id,
+      day_number: n.positive(),
+      title: lt,
+      body: lt,
+      city: t,
+      media_id: id.nullable(),
+    },
+  },
+  faqs: {
+    table: 'faqs',
+    fields: {
+      package_id: id.nullable(),
+      question: lt,
+      answer: lt,
+      status: z.enum(publishStatusValues),
+      sort_order: n,
+    },
+  },
+  leads: {
+    table: 'leads',
+    fields: {
+      status: z.enum(leadStatusValues),
+      user_id: id.nullable(),
+      preferred_period: t,
+      party_size: n.min(1).max(50),
+      sport: z.enum(sportValues),
+      budget_note: t,
+    },
+  },
+  services: {
+    table: 'services',
+    fields: {
+      batch_id: id,
+      booking_id: id.nullable(),
+      traveler_id: id.nullable(),
+      type: z.enum(serviceTypes),
+      status: z.enum(serviceStatusValues),
+      title: lt,
+      details: j,
+      starts_at: t.nullable(),
+      ends_at: t.nullable(),
+      delivery_method: z.enum(deliveryMethodValues).nullable(),
+      external_app_name: t,
+      delivery_instructions: lt,
+      handover_target_on: dt.nullable(),
+      handover_status: z.enum(handoverStatusValues),
+      confirmation_ref: t,
+      member_note: lt,
+      supplier_name: t,
+      supplier_ref: t,
+      internal_notes: t,
+    },
+  },
+  itinerary: {
+    table: 'batch_itinerary_items',
+    fields: {
+      batch_id: id,
+      day_number: n.positive(),
+      starts_at_local: t.nullable(),
+      ends_at_local: t.nullable(),
+      timezone: t,
+      title: lt,
+      body: lt,
+      location_name: t,
+      map_url: z.url().nullable(),
+      service_id: id.nullable(),
+      sort_order: n,
+    },
+  },
+  visas: {
+    table: 'visa_applications',
+    fields: {
+      stage: z.enum(visaStageValues),
+      appointment_at: t.nullable(),
+      appointment_location: t,
+      submitted_on: dt.nullable(),
+      decided_on: dt.nullable(),
+      checklist: j,
+      member_note: lt,
+      internal_notes: t,
+    },
+  },
+  rooms: {
+    table: 'rooms',
+    fields: {
+      batch_id: id,
+      hotel_service_id: id.nullable(),
+      room_type: z.enum(roomTypeValues),
+      label: t,
+      notes: t,
+    },
+  },
+  pages: {
+    table: 'content_pages',
+    fields: {
+      slug: t,
+      title: lt,
+      body: j,
+      seo: j,
+      status: z.enum(publishStatusValues),
+    },
+  },
+  sections: {
+    table: 'home_sections',
+    fields: {
+      kind: z.enum(sectionKindValues),
+      data: j,
+      status: z.enum(publishStatusValues),
+      sort_order: n,
+    },
+  },
+  testimonials: {
+    table: 'testimonials',
+    fields: {
+      quote: lt,
+      author_name: t,
+      author_context: lt,
+      package_id: id.nullable(),
+      consent_on_file: bool,
+      status: z.enum(publishStatusValues),
+      sort_order: n,
+    },
+  },
+  team: {
+    table: 'team_members',
+    fields: {
+      name: t,
+      role: lt,
+      bio: lt,
+      photo_media_id: id.nullable(),
+      verified_at: t.nullable(),
+      status: z.enum(publishStatusValues),
+      sort_order: n,
+    },
+  },
+  settings: { table: 'site_settings', fields: { key: t, value: j } },
+  templates: { table: 'notification_templates', fields: { subject: t, body: t } },
+  members: { table: 'users', readonly: true },
+  admins: { table: 'users', readonly: true },
+  travelers: { table: 'travelers', readonly: true },
+  requests: { table: 'bookings', readonly: true },
+  bookings: { table: 'bookings', readonly: true },
+  invoices: { table: 'invoices', readonly: true },
+  payments: { table: 'payments', readonly: true },
+  refunds: { table: 'refunds', readonly: true },
+  documents: { table: 'documents', readonly: true },
+  media: {
+    table: 'media_assets',
+    fields: {
+      alt: lt,
+      poster_asset_id: id.nullable(),
+      focal_x: z.number().min(0).max(100),
+      focal_y: z.number().min(0).max(100),
+      rights_status: z.enum(rightsStatusValues),
+      license_note: t,
+      license_expires_on: dt.nullable(),
+      is_ai_generated: bool,
+    },
+  },
+  notifications: { table: 'notifications', readonly: true },
+  audit: { table: 'audit_logs', readonly: true },
+};
+export const jsonFields = new Set([
+  'role',
+  'bio',
+  'proof_points',
+  'nights_note',
+  'interest_label',
+  'ticket_allocation_note',
+  'delivery_instructions',
+  'title',
+  'subtitle',
+  'summary',
+  'story',
+  'highlights',
+  'inclusions',
+  'exclusions',
+  'hotel_style',
+  'terms',
+  'visa_note',
+  'seo',
+  'name',
+  'meeting_point',
+  'member_notes',
+  'description',
+  'question',
+  'answer',
+  'details',
+  'member_note',
+  'body',
+  'checklist',
+  'quote',
+  'author_context',
+  'data',
+  'value',
+  'alt',
+]);
+
+export function resourceInputSchema(resource: string) {
+  const definition = resources[resource];
+  if (!definition?.fields) throw new Error('Resource is not editable.');
+  return z
+    .object(
+      Object.fromEntries(
+        Object.entries(definition.fields).map(([key, value]) => [key, value.optional()]),
+      ),
+    )
+    .extend({
+      claims_reason: z.string().trim().max(4000).optional(),
+      rights_reason: z.string().trim().max(4000).optional(),
+      override_reason: z.string().trim().max(4000).optional(),
+    })
+    .strict();
+}

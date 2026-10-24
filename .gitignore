@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.data/
+apps/web/build/
+apps/web/.react-router/
+.turbo/
+*.log
+.DS_Store
+apps/web/public/media/
+
+.lighthouseci/
+.backups/
+.vitest/
+coverage/

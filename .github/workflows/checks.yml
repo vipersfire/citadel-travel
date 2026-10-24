@@ -1,0 +1,54 @@
+name: Checks
+on:
+  push:
+  pull_request:
+  workflow_call:
+    inputs:
+      target_sha:
+        required: false
+        type: string
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: '${{ inputs.target_sha || github.sha }}' }
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - name: PostgreSQL client tools for restore drills
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm exec tsx scripts/check-flow.ts
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm check:browser-flow
+      - name: Public accessibility and performance
+        run: |
+          PREVIEW_LISTEN_HOST=0.0.0.0 CITADEL_CHECK_ORIGIN=https://localhost:3443 pnpm exec tsx scripts/start-check-preview.ts > /tmp/citadel-preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid"; docker rm -f citadel-quality-edge >/dev/null 2>&1 || true' EXIT
+          docker run -d --name citadel-quality-edge --add-host host.docker.internal:host-gateway -p 127.0.0.1:3443:3443 -v "$PWD/infra/Caddyfile.check:/etc/caddy/Caddyfile:ro" caddy:2-alpine
+          node --import tsx --input-type=module -e 'const {previewReady}=await import("./scripts/preview-ready.ts");await previewReady("http://localhost:3330");'
+          CITADEL_PREVIEW_URL=http://localhost:3330 pnpm check:ui
+          CITADEL_PREVIEW_URL=http://localhost:3330 pnpm check:axe
+          CITADEL_PREVIEW_URL=http://localhost:3330 pnpm check:performance
+          CHROME_PATH=$(command -v chromium || command -v chromium-browser || command -v google-chrome) pnpm exec lhci autorun
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-reports
+          path: |
+            .data/checks
+            .lighthouseci
+      - run: docker build -f infra/Dockerfile -t citadel:check .

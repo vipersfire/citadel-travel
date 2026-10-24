@@ -1,0 +1,13 @@
+{
+  "name": "@citadel/contracts",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./resources": "./src/resources.ts",
+    "./requests": "./src/requests.ts"
+  },
+  "dependencies": {
+    "zod": "^4.0.0"
+  }
+}

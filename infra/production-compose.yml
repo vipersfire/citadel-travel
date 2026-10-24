@@ -1,0 +1,44 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ['80:80', '443:443']
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN}
+      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-127.0.0.1/32 ::1/128}
+    volumes: ['./Caddyfile:/etc/caddy/Caddyfile:ro', 'caddy:/data']
+    depends_on: [web, api]
+  api:
+    image: ${CITADEL_IMAGE:-citadel-travel:production}
+    build: { context: '..', dockerfile: infra/Dockerfile }
+    command: ['pnpm', '--filter', '@citadel/api', 'start']
+    env_file: ../.env
+    environment:
+      APP_ENV: production
+      PORT: 4000
+      TRUST_PROXY: loopback,uniquelocal
+    volumes: ['local-data:/app/.data']
+    restart: unless-stopped
+  web:
+    image: ${CITADEL_IMAGE:-citadel-travel:production}
+    build: { context: '..', dockerfile: infra/Dockerfile }
+    command: ['pnpm', '--filter', '@citadel/web', 'start']
+    environment:
+      PORT: 3000
+      API_INTERNAL_URL: http://api:4000
+      APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN}
+    restart: unless-stopped
+    depends_on: [api]
+  worker:
+    image: ${CITADEL_IMAGE:-citadel-travel:production}
+    build: { context: '..', dockerfile: infra/Dockerfile }
+    command: ['pnpm', 'worker']
+    env_file: ../.env
+    environment:
+      APP_ENV: production
+    volumes: ['local-data:/app/.data']
+    restart: unless-stopped
+    depends_on: [api]
+volumes:
+  caddy:
+  local-data:

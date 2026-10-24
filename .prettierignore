@@ -1,0 +1,7 @@
+node_modules
+.data
+apps/web/build
+apps/web/.react-router
+packages/db/generated
+pnpm-lock.yaml
+*.pdf

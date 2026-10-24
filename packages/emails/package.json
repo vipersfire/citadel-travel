@@ -1,0 +1,11 @@
+{
+  "name": "@citadel/emails",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "react": "^19.2.0",
+    "@react-email/components": "^1.0.0",
+    "@react-email/render": "^2.0.0"
+  }
+}

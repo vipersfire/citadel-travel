@@ -1,0 +1,13 @@
+{
+  "name": "@citadel/db",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "drizzle-orm": "0.45.4",
+    "pg": "^8.16.0",
+    "@electric-sql/pglite": "0.5.9",
+    "dotenv": "^17.0.0",
+    "@node-rs/argon2": "^2.0.0"
+  }
+}

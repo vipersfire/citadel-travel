@@ -1,0 +1,61 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [staging, production]
+        default: staging
+        required: true
+  workflow_run:
+    workflows: [Checks]
+    types: [completed]
+    branches: [main]
+permissions: { contents: read, packages: write }
+jobs:
+  quality:
+    uses: ./.github/workflows/checks.yml
+    with: { target_sha: '${{ github.event.workflow_run.head_sha || github.sha }}' }
+  release:
+    needs: quality
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && vars.AUTO_DEPLOY_STAGING == 'true')
+    environment: ${{ inputs.environment || 'staging' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: '${{ github.event.workflow_run.head_sha || github.sha }}' }
+      - name: Image name
+        run: echo "CITADEL_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:${{ github.event.workflow_run.head_sha || github.sha }}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          {
+            registry: ghcr.io,
+            username: '${{ github.actor }}',
+            password: '${{ secrets.GITHUB_TOKEN }}',
+          }
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/Dockerfile
+          push: true
+          tags: ${{ env.CITADEL_IMAGE }}
+      - name: Prepare deployment key
+        env: { DEPLOY_KEY: '${{ secrets.DEPLOY_SSH_KEY }}' }
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s' "$DEPLOY_KEY" > ~/.ssh/citadel
+          chmod 600 ~/.ssh/citadel
+      - name: Verify host and release
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_DIRECTORY: ${{ secrets.DEPLOY_DIRECTORY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          case "$DEPLOY_DIRECTORY" in /*) ;; *) echo "DEPLOY_DIRECTORY must be absolute" >&2; exit 1;; esac
+          printf -v quoted_directory '%q' "$DEPLOY_DIRECTORY"
+          printf -v quoted_image '%q' "$CITADEL_IMAGE"
+          ssh -i ~/.ssh/citadel "$DEPLOY_USER@$DEPLOY_HOST" "cd $quoted_directory && git fetch origin && git checkout --detach '$RELEASE_SHA' && RELEASE_DIRECTORY=$quoted_directory CITADEL_IMAGE=$quoted_image sh infra/release.sh"

@@ -14,7 +14,7 @@
     "@citadel/ui": "workspace:*",
     "@react-router/node": "7.18.4",
     "@react-router/serve": "7.18.4",
-    "@sentry/react": "^11.7.0",
+    "@sentry/react": "^11.8.0",
     "isbot": "^5",
     "lucide-react": "^0.577.0",
     "qrcode.react": "^4.2.0",

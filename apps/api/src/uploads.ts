@@ -10,13 +10,7 @@ import { uploadInitSchema } from '@citadel/contracts';
 import { authenticate } from './auth.js';
 import { audit, fail, sha, token, secureEqual } from './core.js';
 import { config } from './config.js';
-import {
-  s3Client,
-  storeObject,
-  readObject,
-  detectedMime,
-  deleteObject,
-} from './storage.js';
+import { s3Client, storeObject, readObject, detectedMime, deleteObject } from './storage.js';
 import { generateVariants } from './media-jobs.js';
 import { wake } from './queue.js';
 async function manifest(id: string) {
@@ -219,7 +213,7 @@ export async function uploadRoutes(app: FastifyInstance) {
       )
     )
       fail('not_found', 'Media not found.', 404);
-    const ext = key.split('.').pop(),
+    const ext = key.split('.').pop() ?? '',
       types: Record<string, string> = {
         jpg: 'image/jpeg',
         jpeg: 'image/jpeg',

@@ -27,7 +27,29 @@ async function proxy(request: Request) {
     init.duplex = 'half';
   }
 
-  return fetch(upstream, init);
+  const response = await fetch(upstream, init);
+  if (!response.headers.get('content-type')?.includes('json')) return response;
+
+  // Finish small JSON responses before returning from the resource route. This keeps
+  // the upstream body alive through Render's proxy instead of forwarding a partial
+  // stream if the incoming request is closed as the route completes.
+  const body = response.body ? await response.arrayBuffer() : null;
+  const responseHeaders = new Headers(response.headers);
+  for (const name of [
+    'connection',
+    'content-encoding',
+    'content-length',
+    'keep-alive',
+    'transfer-encoding',
+    'upgrade',
+  ])
+    responseHeaders.delete(name);
+
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: responseHeaders,
+  });
 }
 
 export function loader({ request }: { request: Request }) {

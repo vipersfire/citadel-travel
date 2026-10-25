@@ -25,7 +25,7 @@ export async function api(path: string, options: RequestInit = {}) {
   return data;
 }
 export async function serverApi(request: Request, path: string, responseHeaders?: Headers) {
-  const base = process.env.API_INTERNAL_URL || 'http://127.0.0.1:4000';
+  const base = process.env.API_BASE_URL || process.env.API_INTERNAL_URL || 'http://127.0.0.1:4000';
   const r = await fetch(base + path, {
     headers: {
       Cookie: request.headers.get('cookie') || '',

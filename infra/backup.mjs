@@ -1,8 +1,9 @@
 import { spawn } from 'node:child_process';
 import { mkdir, open } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required.');
-const url = new URL(process.env.DATABASE_URL),
+const connectionString = process.env.BACKUP_DATABASE_URL || process.env.DATABASE_URL;
+if (!connectionString) throw new Error('Set BACKUP_DATABASE_URL or DATABASE_URL.');
+const url = new URL(connectionString),
   target = resolve(
     process.env.BACKUP_OUTPUT ||
       `.backups/citadel-${new Date().toISOString().replaceAll(':', '-')}.dump`,

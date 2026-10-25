@@ -1,6 +1,5 @@
 import { transaction, closeDb } from './index.js';
 import { migrate } from './migrate.js';
-import { hash } from '@node-rs/argon2';
 import { completeContent } from './development-content.js';
 export const catalog = [
   {
@@ -320,7 +319,8 @@ export async function seed() {
       "INSERT INTO site_settings(key,value) VALUES('contact',$1) ON CONFLICT DO NOTHING",
       [JSON.stringify({ email: '', whatsapp: '', address: 'Jakarta, Indonesia' })],
     );
-    if (process.env.SEED_ADMIN_EMAIL && process.env.SEED_ADMIN_PASSWORD)
+    if (process.env.SEED_ADMIN_EMAIL && process.env.SEED_ADMIN_PASSWORD) {
+      const { hash } = await import('@node-rs/argon2');
       await tx.query(
         "INSERT INTO users(email,full_name,password_hash,role,email_verified_at) VALUES($1,'Citadel Administrator',$2,'admin',now()) ON CONFLICT(email) DO NOTHING",
         [
@@ -332,6 +332,7 @@ export async function seed() {
           }),
         ],
       );
+    }
   });
   await transaction(completeContent);
   console.log('Six draft sport products seeded. Event dates provisional; departure batches draft.');

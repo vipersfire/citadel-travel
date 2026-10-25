@@ -5,7 +5,6 @@ import { db, transaction } from '@citadel/db';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { randomUUID, createHmac } from 'node:crypto';
 import { resolve } from 'node:path';
-import sharp from 'sharp';
 import { z } from 'zod';
 import { config, projectRoot } from './config.js';
 import { s3Client, storeObject, readObject } from './storage.js';
@@ -238,6 +237,7 @@ export async function filesRoutes(app: FastifyInstance) {
     }
     if (!mime || mime === 'application/pdf' || bytes.length > 26214400)
       fail('invalid_file', 'Use a JPG, PNG or WebP under 25 MB.');
+    const sharp = (await import('sharp')).default;
     const image = sharp(bytes, { limitInputPixels: 40000000 }),
       meta = await image.metadata();
     const id = randomUUID(),

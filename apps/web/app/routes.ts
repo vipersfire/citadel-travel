@@ -1,5 +1,8 @@
 import { type RouteConfig, index, route } from '@react-router/dev/routes';
 export default [
+  route('api/*', 'routes/api-proxy.ts', { id: 'api-proxy' }),
+  route('auth/*', 'routes/api-proxy.ts', { id: 'auth-proxy' }),
+  route('healthz', 'routes/api-proxy.ts', { id: 'healthz-proxy' }),
   index('routes/index.tsx'),
   route('sitemap.xml', 'routes/sitemap.ts'),
   route('robots.txt', 'routes/robots.ts'),

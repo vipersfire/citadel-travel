@@ -1,6 +1,6 @@
 import { v2Maintenance } from './v2.js';
 import './config.js';
-import { pool, closeDb } from '@citadel/db';
+import { pool, closeDb, postgresPoolConfig } from '@citadel/db';
 import { PgBoss } from 'pg-boss';
 import {
   notifications,
@@ -15,7 +15,7 @@ import { warmPublishedPdf } from './pdf-cache.js';
 import { monitor, operationalAlert } from './alerts.js';
 import { reportError } from './instrumentation.js';
 if (!pool) throw new Error('The worker requires PostgreSQL DATABASE_URL.');
-const boss = new PgBoss({ connectionString: process.env.DATABASE_URL!, max: 4 });
+const boss = new PgBoss({ ...postgresPoolConfig(4), useListenNotify: false });
 await boss.start();
 const jobs: Record<string, (data: any) => Promise<unknown>> = {
   'analytics.retention': () => v2Maintenance('analytics'),

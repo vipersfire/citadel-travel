@@ -4,7 +4,9 @@
 
 | Setting                                                  | Development default      | Production                                                                    |
 | -------------------------------------------------------- | ------------------------ | ----------------------------------------------------------------------------- |
-| `DATABASE_URL`                                           | Empty: persistent PGlite | Required PostgreSQL                                                           |
+| `DATABASE_URL`                                           | Empty: persistent PGlite | Required PostgreSQL; use Neon's pooled URL for runtime connections             |
+| `BACKUP_DATABASE_URL`                                    | Empty: use `DATABASE_URL` | Optional direct PostgreSQL URL for `pg_dump` backups                           |
+| `API_BASE_URL`                                            | Empty: use `API_INTERNAL_URL` or localhost | API URL reachable by the web server; public API URL works without private networking |
 | `APP_ORIGIN`                                             | `http://localhost:3000`  | Canonical app origin                                                          |
 | `APP_ALLOWED_ORIGINS`                                    | Empty                    | Comma-separated extra browser origins; use exact HTTPS origins in production |
 | `SESSION_SECRET`                                         | Generated local secret   | Permanent random 32+ characters                                               |

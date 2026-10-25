@@ -1,4 +1,3 @@
-import sharp from 'sharp';
 import { db } from '@citadel/db';
 import { readObject, storeObject } from './storage.js';
 export async function generateVariants(id: string) {
@@ -11,6 +10,7 @@ export async function generateVariants(id: string) {
     /^https:\/\//i.test(m.storage_key)
   )
     return;
+  const sharp = (await import('sharp')).default;
   const bytes = await readObject(m.bucket, m.storage_key);
   const meta = await sharp(bytes, { limitInputPixels: 60000000 }).metadata();
   const variants = [];

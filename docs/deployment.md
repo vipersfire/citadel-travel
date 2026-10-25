@@ -29,11 +29,17 @@ In GitHub repository **Settings → Secrets and variables → Actions**, configu
 
 The job is skipped until `NEON_CI_PROJECT_ID` is set. The API key is required once enabled. The temporary branch connection string is used only for the migration command.
 
-Set the app host's private `.env` `DATABASE_URL` to the Neon **direct** PostgreSQL connection string with TLS enabled (`sslmode=require`). This app runs long-lived API and worker processes, including pg-boss; keep the same database URL for the API and worker. The Release workflow runs migrations from the host before replacing the running containers, so releases require backward-compatible migrations. Do not put the production database URL in the repository or print it in CI logs.
+Set the app host's private `.env` `DATABASE_URL` to Neon's **pooled** PostgreSQL connection string (the hostname includes `-pooler`) with TLS enabled, such as `sslmode=require&channel_binding=require`. Drizzle and node-postgres enable TLS channel binding; pg-boss uses polling and transaction-scoped database operations, so it is compatible with Neon's transaction pooler. Keep the same database URL for the API and worker. The Release workflow runs migrations from the host before replacing the running containers, so releases require backward-compatible migrations. Do not put the production database URL in the repository or print it in CI logs.
+
+Use Neon's **direct** connection string for `pg_dump` backups: set `BACKUP_DATABASE_URL` for `node infra/backup.mjs`. The backup script falls back to `DATABASE_URL` for local/direct connections. Do not use the transaction-pooler URL for database dumps.
 
 Jobs run inline in development with PGlite or PostgreSQL. Run the dedicated PostgreSQL worker in hosted environments. The worker handles notification outbox sends, expired offers, reminders, batch lifecycle, data retention, session cleanup and payment reconciliation. Queue schedules use Asia/Jakarta.
 
 ## Providers
+
+### Render without private networking
+
+The web service can proxy browser requests to a separately hosted API without Render private networking. Set the web service's `API_BASE_URL` to the API's public HTTPS origin (for example, `https://citadel-api.onrender.com`, with no path). The web service proxies `/api/*`, `/auth/*` and `/healthz` to that origin; server-rendered requests use it as well. Set the API service's `APP_ORIGIN` to the public web origin, and set `GOOGLE_REDIRECT_URI` to `<APP_ORIGIN>/auth/google/callback`. No CORS configuration is needed for browser requests because they remain same-origin through the web proxy. Keep both Render services in the same region when possible.
 
 - Google: approved OAuth consent screen, production redirect URI, and a non-test account sign-in check.
 - Xendit: set `PAYMENT_PROVIDER=xendit`, activate allowed IDR channels, configure HTTPS `/api/webhooks/xendit` and callback token. Use test keys on staging and live keys only in production. Capture and verify actual webhook payloads from your account before accepting customers. The adapter uses the Payment Sessions endpoint, not the legacy Invoice API. Restrict high-value offers to channels within your approved caps.

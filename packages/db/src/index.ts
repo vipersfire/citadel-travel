@@ -1,9 +1,6 @@
 import { config as dotenv } from 'dotenv';
 import { Pool } from 'pg';
-import { PGlite } from '@electric-sql/pglite';
-import { citext } from '@electric-sql/pglite/contrib/citext';
 import { drizzle as pgDrizzle } from 'drizzle-orm/node-postgres';
-import { drizzle as liteDrizzle } from 'drizzle-orm/pglite';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 export type Row = Record<string, any>;
@@ -26,15 +23,35 @@ function normalizeRows<T extends Row>(rows: T[]): T[] {
 }
 const root = resolve(import.meta.dirname, '../../..');
 dotenv({ path: resolve(root, '.env'), quiet: true });
-if (process.env.APP_ENV === 'production' && !process.env.DATABASE_URL)
+if (
+  (process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production') &&
+  !process.env.DATABASE_URL
+)
   throw new Error('DATABASE_URL is required in production');
+export const postgresPoolConfig = (max: number) => ({
+  connectionString: process.env.DATABASE_URL!,
+  max,
+  // pg's URL parser preserves channel_binding=require as an unknown option. Enable
+  // SCRAM-SHA-256-PLUS explicitly so Neon connections use TLS channel binding.
+  enableChannelBinding: true,
+});
 const localPath = process.env.PGLITE_DIR || resolve(root, '.data/postgres');
 await mkdir(localPath, { recursive: true });
 export const pool = process.env.DATABASE_URL
-  ? new Pool({ connectionString: process.env.DATABASE_URL, max: 8 })
+  ? new Pool(postgresPoolConfig(8))
   : null;
-export const lite = pool ? null : new PGlite(localPath, { extensions: { citext } });
-export const orm = pool ? pgDrizzle(pool) : liteDrizzle(lite!);
+export const lite = pool
+  ? null
+  : await (async () => {
+      const [{ PGlite }, { citext }] = await Promise.all([
+        import('@electric-sql/pglite'),
+        import('@electric-sql/pglite/contrib/citext'),
+      ]);
+      return new PGlite(localPath, { extensions: { citext } });
+    })();
+export const orm = pool
+  ? pgDrizzle(pool)
+  : await import('drizzle-orm/pglite').then(({ drizzle }) => drizzle(lite!));
 export const db: Connection = {
   async query<T extends Row>(text: string, values: unknown[] = []) {
     const result = pool ? await pool.query(text, values) : await lite!.query(text, values);

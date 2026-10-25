@@ -1,4 +1,5 @@
 import { PgBoss } from 'pg-boss';
+import { postgresPoolConfig } from '@citadel/db';
 import { config } from './config.js';
 let queue: PgBoss | undefined;
 let opening: Promise<PgBoss> | undefined;
@@ -6,7 +7,7 @@ export async function jobQueue() {
   if (!process.env.DATABASE_URL) return null;
   if (!opening)
     opening = (async () => {
-      queue = new PgBoss({ connectionString: process.env.DATABASE_URL!, max: 2 });
+      queue = new PgBoss({ ...postgresPoolConfig(2), useListenNotify: false });
       queue.on('error', () => {
         /* Durable domain outbox is retried by recovery jobs. */
       });

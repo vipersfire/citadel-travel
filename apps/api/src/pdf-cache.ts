@@ -1,5 +1,4 @@
 import { db } from '@citadel/db';
-import { pdf } from '@citadel/pdf';
 import { sha } from './core.js';
 import { readObject, storeObject } from './storage.js';
 import { date, money } from '@citadel/i18n';
@@ -16,6 +15,7 @@ export async function cachedPdf(
   try {
     return await readObject(bucket, key);
   } catch {
+    const { pdf } = await import('@citadel/pdf');
     const bytes = await pdf(title, subtitle, rows, locale);
     await storeObject(bucket, key, bytes, 'application/pdf');
     return bytes;

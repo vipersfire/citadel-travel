@@ -32,7 +32,7 @@ Event changes update the public fixture only. Review affected batches/bookings, 
 
 ## Local verification and recovery tools
 
-`node infra/backup.mjs` creates a restricted-permission custom PostgreSQL dump; `node infra/restore.mjs` restores to a separate empty scratch database. Set `BACKUP_OUTPUT`, `BACKUP_INPUT`, and `RESTORE_DATABASE_URL` in the command environment; never include credentials in command arguments or logs. The isolated PostgreSQL tests exercise a timed restore and compare every business table's row count. Managed daily backups and seven-day PITR must still be enabled with the database provider.
+`node infra/backup.mjs` creates a restricted-permission custom PostgreSQL dump; use the direct database endpoint in `BACKUP_DATABASE_URL` when the app runtime uses Neon pooling. `node infra/restore.mjs` restores to a separate empty scratch database. Set `BACKUP_OUTPUT`, `BACKUP_DATABASE_URL`, `BACKUP_INPUT`, and `RESTORE_DATABASE_URL` in the command environment; never include credentials in command arguments or logs. The isolated PostgreSQL tests exercise a timed restore and compare every business table's row count. Managed daily backups and seven-day PITR must still be enabled with the database provider.
 
 Finance can download payment acknowledgments for late/mismatched funds, record external refunds, and close a reviewed flag only after the recorded balance is resolved. Acknowledgments never confirm a journey. Admin private document previews are audited. Check Admin → Deletion requests, Webhook review and flagged invoices daily.
 

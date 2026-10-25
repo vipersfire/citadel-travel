@@ -17,7 +17,6 @@ import { filesRoutes } from './files.js';
 import { workspaceRoutes } from './workspaces.js';
 import { uploadRoutes } from './uploads.js';
 import { closeQueue } from './queue.js';
-import { notifications, lifecycle, recoverBackground, predepartureAlerts } from './jobs.js';
 import { AppError } from './core.js';
 export const app = Fastify({
   trustProxy: process.env.TRUST_PROXY ? process.env.TRUST_PROXY.split(',') : false,
@@ -152,6 +151,9 @@ const tick = async () => {
   if (busy) return;
   busy = true;
   try {
+    const { notifications, lifecycle, recoverBackground, predepartureAlerts } = await import(
+      './jobs.js'
+    );
     await lifecycle();
     await notifications();
     await recoverBackground();

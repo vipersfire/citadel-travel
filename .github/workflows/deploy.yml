@@ -15,12 +15,16 @@ permissions:
   contents: read
 jobs:
   quality:
+    if: github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/checks.yml
     with: { target_sha: '${{ github.event.workflow_run.head_sha || github.sha }}' }
     secrets: inherit
   release:
     needs: quality
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && vars.AUTO_DEPLOY_STAGING == 'true')
+    if: >-
+      always() &&
+      ((github.event_name == 'workflow_dispatch' && needs.quality.result == 'success') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && vars.AUTO_DEPLOY_STAGING == 'true'))
     environment: ${{ inputs.environment || 'staging' }}
     runs-on: ubuntu-latest
     permissions:

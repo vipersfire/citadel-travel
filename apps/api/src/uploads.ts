@@ -5,13 +5,11 @@ import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { db, transaction } from '@citadel/db';
 import { z } from 'zod';
-import sharp from 'sharp';
 import { uploadInitSchema } from '@citadel/contracts';
 import { authenticate } from './auth.js';
 import { audit, fail, sha, token, secureEqual } from './core.js';
 import { config } from './config.js';
 import { s3Client, storeObject, readObject, detectedMime, deleteObject } from './storage.js';
-import { generateVariants } from './media-jobs.js';
 import { wake } from './queue.js';
 async function manifest(id: string) {
   const [record] = await db.query(
@@ -141,6 +139,7 @@ export async function uploadRoutes(app: FastifyInstance) {
       fail('invalid_file', 'File signature does not match its declared type.');
     if (m.input.kind === 'image') {
       try {
+        const sharp = (await import('sharp')).default;
         await sharp(bytes, { limitInputPixels: 60000000 }).resize(1).toBuffer();
       } catch {
         fail('invalid_file', 'The image cannot be decoded. Choose a valid JPG, PNG or WebP.');
@@ -201,7 +200,11 @@ export async function uploadRoutes(app: FastifyInstance) {
     );
     if (b.kind === 'image') {
       if (config.APP_ENV === 'development')
-        setImmediate(() => void generateVariants(row.id).catch(() => undefined));
+        setImmediate(() =>
+          void import('./media-jobs.js')
+            .then(({ generateVariants }) => generateVariants(row.id))
+            .catch(() => undefined),
+        );
       else await wake('media.variants', { id: row.id });
     }
     return row;
